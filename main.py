@@ -2,9 +2,13 @@ from ultralytics import YOLO
 import cv2 as cv
 import requests
 import time
+import pyttsx3  # Import the text-to-speech engine
+
+# Initialize the TTS engine
+engine = pyttsx3.init()
 
 # Load the YOLO model (using YOLOv5 pre-trained on COCO)
-model = YOLO("yolov5n.pt")  
+model = YOLO("yolo11n.pt")  
 
 # Load COCO class names from 'coco.names'
 with open("coco.names", "r") as f:
@@ -120,6 +124,9 @@ while True:
                 interaction_message = answer
                 display_answer = True
                 answer_display_start = time.time()
+                # Use voice output for manual query answers
+                engine.say(answer)
+                engine.runAndWait()
                 input_mode = False
                 current_input = ""
             elif key in [8, 127]:  # Backspace key

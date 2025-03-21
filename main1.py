@@ -38,7 +38,7 @@ index = faiss.read_index("faq_index.faiss")
 df = pd.read_csv("faq_data.csv")
 
 
-SIMILARITY_THRESHOLD = 1.5
+SIMILARITY_THRESHOLD = 1.0
 
 def get_faq_response(user_query):
     if user_query.lower() == "exit":
@@ -46,7 +46,7 @@ def get_faq_response(user_query):
     query_embedding = model.encode([user_query], convert_to_numpy=True)
     distances, indices = index.search(query_embedding, 1)
     if distances[0][0] > SIMILARITY_THRESHOLD:
-        return "Hmm, I couldn’t find a clear answer to your question. Could you please try rephrasing it? If you have any medical problem, book an appointment, or check our website for more details!"
+        return "Hmm, I couldn’t find a clear answer to your question"
     return df.iloc[indices[0][0]]['answer']
 
 @app.get("/faq/")
