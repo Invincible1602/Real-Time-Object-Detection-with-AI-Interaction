@@ -31,7 +31,7 @@ def query_faq_chatbot(query):
 # Open a connection to the webcam (device 0)
 cap = cv.VideoCapture(0)
 
-interaction_message = ""   # To display the chatbot's answer
+interaction_message = ""   # To display the chatbot's answer for manual queries
 input_mode = False         # Flag for when the user is typing a question
 current_input = ""         # Stores the characters typed by the user
 display_answer = False     # Flag to show the answer for a fixed duration
@@ -40,7 +40,7 @@ display_answer = False     # Flag to show the answer for a fixed duration
 answer_display_start = None
 ANSWER_DISPLAY_TIME = 5  # seconds
 
-# Object detection messages
+# Object detection messages (stores messages for detected objects)
 object_messages = {}
 MESSAGE_DISPLAY_TIME = 3  # Time in seconds to display messages for detected objects
 
@@ -70,12 +70,17 @@ while True:
         cv.putText(frame, f"{label} {conf:.2f}", (int(x1), int(y1) - 10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
-        # If a new object appears, store the message
-        if label not in object_messages:
-            object_messages[label] = (f"Detected: {label}", time.time())
-
-        # If person detected, flag it
-        if label.lower() == "person":
+        # For non-person objects, trigger chatbot interaction automatically
+        if label.lower() != "person":
+            if label not in object_messages:
+                # Generate a query and get an answer from the FAQ chatbot
+                query = f"What can you tell me about {label}?"
+                answer = query_faq_chatbot(query)
+                object_messages[label] = (f"Detected: {label}. {answer}", time.time())
+        else:
+            # For persons, just store a simple detection message if not already done
+            if label not in object_messages:
+                object_messages[label] = (f"Detected: {label}", time.time())
             person_detected = True
 
     # Display object messages
@@ -88,7 +93,7 @@ while True:
         else:
             del object_messages[obj]  # Remove expired messages
     
-    # Display chatbot interaction prompt
+    # Display chatbot interaction prompt for manual input when a person is detected
     if not input_mode and person_detected:
         cv.putText(frame, "Press 'i' to talk", (50, 400), cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
     
@@ -96,7 +101,7 @@ while True:
     if input_mode:
         cv.putText(frame, "Type: " + current_input, (50, 450), cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
 
-    # If there's an interaction message (answer) to display
+    # If there's an interaction message (answer) to display from manual input
     if display_answer and interaction_message:
         cv.putText(frame, interaction_message, (50, 480), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
         if answer_display_start and time.time() - answer_display_start > ANSWER_DISPLAY_TIME:
@@ -107,7 +112,7 @@ while True:
     
     key = cv.waitKey(1) & 0xFF
 
-    # If in input mode, capture keyboard input
+    # If in input mode, capture keyboard input for manual FAQ queries
     if input_mode:
         if key != 255 and key != -1:  # if a key is pressed
             if key == 13:  # Enter key sends the question
