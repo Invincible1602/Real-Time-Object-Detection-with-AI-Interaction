@@ -19,7 +19,7 @@ This project integrates real-time object detection using dual YOLO models with a
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/yourusername/Real-Time-Object-Detection-with-AI-Interaction.git
+   git clone https://github.com/Invincible1602/Real-Time-Object-Detection-with-AI-Interaction.git
    cd Real-Time-Object-Detection-with-AI-Interaction
    ```
 
