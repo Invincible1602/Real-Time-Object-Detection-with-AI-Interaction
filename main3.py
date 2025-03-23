@@ -5,23 +5,21 @@ import time
 import pyttsx3
 from concurrent.futures import ThreadPoolExecutor
 
-# Initialize TTS engine
+
 engine = pyttsx3.init()
 
-# Load both models
 model_custom = YOLO("best.pt")
 model_coco = YOLO("yolov5n.pt")
 
-# Set custom model class names and update internal names dictionary
-hotel_names = ["ac", "bed", "c", "chair", "clock", "cup", "sofa", "tv", "tvmonitor"]
+
+hotel_names = ["ac", "bed", "chair", "clock", "cup", "sofa", "tv", "tvmonitor"]
 model_custom.model.names = {i: name for i, name in enumerate(hotel_names)}
 
-# Load COCO names for model_coco
+
 with open("coco.names", "r") as f:
     coco_names = [line.strip() for line in f.readlines()]
 model_coco.model.names = {i: name for i, name in enumerate(coco_names)}
 
-# FAQ Chatbot API endpoint
 FAQ_API_URL = "http://localhost:8000/faq/"
 
 def query_faq_chatbot(query):
@@ -37,7 +35,6 @@ def query_faq_chatbot(query):
         return f"Error: {e}"
 
 def compute_iou(box1, box2):
-    # Each box is a tuple: (x1, y1, x2, y2)
     x_left   = max(box1[0], box2[0])
     y_top    = max(box1[1], box2[1])
     x_right  = min(box1[2], box2[2])
@@ -52,40 +49,38 @@ def compute_iou(box1, box2):
     iou = inter_area / float(area1 + area2 - inter_area)
     return iou
 
-# Open webcam
+
 cap = cv.VideoCapture(0)
 
-# Variables for interaction and messages
+
 interaction_message = ""
 input_mode = False
 current_input = ""
 display_answer = False
 answer_display_start = None
-ANSWER_DISPLAY_TIME = 5  # seconds
+ANSWER_DISPLAY_TIME = 5  
 object_messages = {}
-MESSAGE_DISPLAY_TIME = 3  # seconds
+MESSAGE_DISPLAY_TIME = 3  
 
-# IoU threshold to consider detections as the same object
+
 IOU_THRESHOLD = 0.5
 
-# Optional: set a smaller size for inference for speed-up
+
 def resize_frame(frame, width=640):
     ratio = width / frame.shape[1]
     height = int(frame.shape[0] * ratio)
     return cv.resize(frame, (width, height)), ratio
 
-# Helper function to draw text with background
+
 def draw_text_with_background(img, text, pos, font=cv.FONT_HERSHEY_SIMPLEX,
                               font_scale=0.8, font_thickness=2,
                               text_color=(255, 255, 255), bg_color=(0, 0, 0)):
     (text_w, text_h), _ = cv.getTextSize(text, font, font_scale, font_thickness)
     x, y = pos
-    # Draw rectangle background
     cv.rectangle(img, (x, y - text_h - 5), (x + text_w, y + 5), bg_color, -1)
-    # Put text over the rectangle
     cv.putText(img, text, (x, y), font, font_scale, text_color, font_thickness)
 
-# Create a thread pool executor for concurrent inference
+
 executor = ThreadPoolExecutor(max_workers=2)
 
 while True:
@@ -93,18 +88,17 @@ while True:
     if not ret:
         break
 
-    # Optionally resize frame for faster inference; adjust as needed.
     resized_frame, scale_ratio = resize_frame(frame, width=640)
     person_detected = False
-    detections = []  # to store detections from both models
+    detections = []  
 
-    # Run both inferences concurrently
+    
     future_custom = executor.submit(model_custom, resized_frame)
     future_coco = executor.submit(model_coco, resized_frame)
     results_custom = future_custom.result()[0]
     results_coco = future_coco.result()[0]
 
-    # Process detections from custom model
+    
     for box in results_custom.boxes:
         x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
         conf = box.conf[0].cpu().numpy()
@@ -120,7 +114,7 @@ while True:
             "label": label
         })
 
-    # Process detections from COCO model
+    
     for box in results_coco.boxes:
         x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
         conf = box.conf[0].cpu().numpy()
@@ -135,36 +129,31 @@ while True:
             "label": label
         })
 
-    # Merge detections: keep only the one with higher confidence for overlapping boxes
+
+    detections_sorted = sorted(detections, key=lambda det: det["conf"], reverse=True)
     final_detections = []
-    for i, det in enumerate(detections):
+    for det in detections_sorted:
         keep_det = True
-        for j, other in enumerate(detections):
-            if i == j:
-                continue
-            if det["label"].lower() == other["label"].lower():
-                iou = compute_iou(det["box"], other["box"])
-                if iou > IOU_THRESHOLD and other["conf"] > det["conf"]:
+        for kept in final_detections:
+            if det["label"].lower() == kept["label"].lower():
+                if compute_iou(det["box"], kept["box"]) > IOU_THRESHOLD:
                     keep_det = False
                     break
         if keep_det:
             final_detections.append(det)
 
-    # Draw final detections and trigger FAQ queries if needed
+    
     for det in final_detections:
         x1, y1, x2, y2 = det["box"]
         conf = det["conf"]
         label = det["label"]
-        # Set color based on model source for clarity: blue for custom, yellow for COCO
         color = (255, 0, 0) if det["model"] == "custom" else (0, 255, 255)
         cv.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-        # For yellow background boxes, set text color to black; otherwise use white
         text_color = (0, 0, 0) if color == (0, 255, 255) else (255, 255, 255)
         label_text = f"{label} {conf:.2f}"
         draw_text_with_background(frame, label_text, (x1, y1 - 5), font_scale=0.7, 
                                   bg_color=color, text_color=text_color)
 
-        # Trigger FAQ query if object is not 'person'
         if label.lower() != "person":
             if label not in object_messages:
                 query = f"What can you tell me about {label}?"
@@ -175,7 +164,7 @@ while True:
                 object_messages[label] = (f"Detected: {label}", time.time())
             person_detected = True
 
-    # Display object messages with background
+    
     y_offset = 50
     current_time = time.time()
     for obj, (message, timestamp) in list(object_messages.items()):
@@ -185,7 +174,6 @@ while True:
         else:
             del object_messages[obj]
 
-    # Manual interaction prompt if person detected
     if not input_mode and person_detected:
         draw_text_with_background(frame, "Press 'i' to talk", (50, 400), font_scale=0.8, bg_color=(50, 50, 50))
     
@@ -201,10 +189,10 @@ while True:
     cv.imshow("Real-Time Object Detection with Dual YOLO Models", frame)
     key = cv.waitKey(1) & 0xFF
 
-    # Manual FAQ query handling
+   
     if input_mode:
         if key not in [255, -1]:
-            if key == 13:  # Enter key
+            if key == 13:  
                 answer = query_faq_chatbot(current_input)
                 interaction_message = answer
                 display_answer = True

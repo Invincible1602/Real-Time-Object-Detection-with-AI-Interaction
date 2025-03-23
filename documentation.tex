@@ -1,0 +1,211 @@
+\documentclass[12pt]{article}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{lipsum}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{graphicx}
+
+\geometry{a4paper, margin=1in}
+
+% Define custom title format for sections
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection.}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection.}{1em}{}
+
+\title{\textbf{Real-Time Object Detection with AI Interaction}\\[1ex]
+\large Detailed Documentation}
+\author{Devansh Verma}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+
+This document provides a detailed overview of the project that integrates real-time object detection using dual YOLO models with a FastAPI-based FAQ chatbot. The system leverages a webcam feed for object detection and uses the chatbot to deliver relevant information about detected objects. Additionally, it incorporates text-to-speech (TTS) functionality for enhanced interactive user experiences.
+
+\section{Project Overview}
+
+\subsection{Approach \& Methodology}
+
+The project is divided into two primary components:
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Real-Time Object Detection:}
+    \begin{itemize}
+        \item Utilizes dual YOLO models:
+        \begin{itemize}
+            \item A custom-trained YOLO model (``best.pt'') tailored for domain-specific objects.
+            \item A COCO-pretrained YOLO model (``yolov5n.pt'') for general object detection.
+        \end{itemize}
+        \item Captures video frames from a webcam, processes them in real-time, and applies concurrent inference to speed up processing.
+        \item Uses OpenCV to draw bounding boxes and overlay text information on the video feed.
+    \end{itemize}
+    
+    \item \textbf{FAQ Chatbot API:}
+    \begin{itemize}
+        \item Built using FastAPI and deployed at the provided URL.
+        \item Processes FAQ data stored in a CSV file (``improved\_faq-1.csv'') with two columns: \textit{question} and \textit{answer}.
+        \item Uses SentenceTransformers (``all-MiniLM-L6-v2'') to encode FAQ questions into embeddings.
+        \item Implements FAISS for efficient similarity search based on the embedding space.
+        \item Integrates thresholding to ensure only sufficiently similar questions retrieve an answer.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Integration Workflow}
+
+\begin{enumerate}[label=\arabic*.]
+    \item The object detection script processes each frame and identifies objects using both YOLO models.
+    \item For each detected object (except persons), a query is generated and sent to the FAQ chatbot.
+    \item The FAQ chatbot searches its FAISS index for the most similar question and returns the corresponding answer.
+    \item Text-to-speech (TTS) is used to audibly deliver the response.
+    \item If a person is detected, the system prompts the user to manually enter a query.
+\end{enumerate}
+
+\section{Data Preprocessing \& Selection}
+
+\subsection{FAQ Data}
+
+\begin{itemize}
+    \item \textbf{Source:} FAQ data is maintained in a CSV file named \texttt{improved\_faq-1.csv}.
+    \item \textbf{Structure:} The file contains two columns:
+    \begin{itemize}
+        \item \textbf{question:} The FAQ question.
+        \item \textbf{answer:} The corresponding answer.
+    \end{itemize}
+    \item \textbf{Preprocessing:} 
+    \begin{itemize}
+        \item Column headers are standardized.
+        \item The questions are encoded into high-dimensional embeddings using the SentenceTransformer model.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Indexing with FAISS}
+
+\begin{itemize}
+    \item The encoded FAQ embeddings are stored in a FAISS index using an L2 distance metric (\texttt{IndexFlatL2}).
+    \item The FAISS index allows for rapid similarity searches when processing user queries.
+    \item The index is saved to disk as \texttt{faq\_index.faiss} and is reloaded along with the processed FAQ data (\texttt{faq\_data.csv}) during runtime.
+\end{itemize}
+
+\section{Model Architecture \& Tuning Process}
+
+\subsection{YOLO Models}
+
+\begin{itemize}
+    \item \textbf{Custom YOLO Model (``best.pt''):}
+    \begin{itemize}
+        \item Trained on a domain-specific dataset (e.g., hotel items such as ``ac'', ``bed'', ``sofa'', etc.).
+        \item Fine-tuned with adjustments to learning rate, batch size, and number of epochs based on validation performance.
+    \end{itemize}
+    \item \textbf{COCO YOLO Model (``yolov5n.pt''):}
+    \begin{itemize}
+        \item A lightweight variant pre-trained on the COCO dataset.
+        \item Provides fast inference speeds to support real-time processing.
+    \end{itemize}
+\end{itemize}
+
+\subsection{FAQ Chatbot Components}
+
+\begin{itemize}
+    \item \textbf{SentenceTransformer:} The model used is \texttt{all-MiniLM-L6-v2}, which provides efficient sentence embeddings.
+    \item \textbf{FAISS:} An L2-based flat index is used to search for similar questions based on embedding distances.
+    \item \textbf{Thresholding:} A similarity threshold (e.g., \texttt{SIMILARITY\_THRESHOLD = 1.0}) is defined to filter out low-confidence matches.
+\end{itemize}
+
+\subsection{Detailed Usage of Dual YOLO Models}
+
+The project employs two distinct YOLO models to maximize the range and accuracy of object detection:
+
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Custom YOLO Model (``best.pt''):}
+    \begin{itemize}
+        \item \textbf{Purpose:} This model is specifically trained on domain-relevant objects such as those encountered in hotel environments or Airbnb-style settings. It is optimized to detect items like air conditioners, beds, sofas, and other furniture with high precision.
+        \item \textbf{Advantages:}
+        \begin{itemize}
+            \item \textbf{Domain-Specific Accuracy:} Its training on a tailored dataset allows for a more nuanced detection of objects that are critical for interior layout analysis.
+            \item \textbf{Fine-Tuned Detection:} It can identify subtle differences in similar items, ensuring that the responses about room layout and related elements are highly detailed.
+        \end{itemize}
+        \item \textbf{Usage in the System:} 
+        \begin{itemize}
+            \item When the custom model detects an object, it provides responses that include detailed contextual information, particularly useful for room layout analysis and Airbnb property descriptions.
+        \end{itemize}
+    \end{itemize}
+    
+    \item \textbf{COCO YOLO Model (``yolov5n.pt''):}
+    \begin{itemize}
+        \item \textbf{Purpose:} This model is pre-trained on the COCO dataset, which contains a broad spectrum of everyday objects. It is integrated to extend the detection capability beyond the specialized domain.
+        \item \textbf{Advantages:}
+        \begin{itemize}
+            \item \textbf{General Object Detection:} Capable of detecting a wide variety of objects such as vehicles, people, animals, and household items.
+            \item \textbf{Versatility:} Enables the system to respond to queries related to general objects, thereby increasing the range of interactions.
+        \end{itemize}
+        \item \textbf{Usage in the System:} 
+        \begin{itemize}
+            \item By combining the COCO model with the custom model, the system can provide comprehensive responses. If an everyday object is detected (e.g., a car or a pet), the COCO model triggers an appropriate FAQ response.
+        \end{itemize}
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Combined Benefits:}
+\begin{itemize}
+    \item The dual-model approach ensures high accuracy for both domain-specific objects and general everyday objects.
+    \item In cases where both models detect the same object, a merging strategy based on confidence scores selects the optimal detection, thereby minimizing false positives.
+    \item This comprehensive detection strategy allows the system to offer richer and more diverse responses, enhancing its utility in varied scenarios.
+\end{itemize}
+
+\section{Performance Results \& Next Steps}
+
+\subsection{Performance Results}
+
+\begin{itemize}
+    \item \textbf{Object Detection:}
+    \begin{itemize}
+        \item The combination of the custom and COCO YOLO models yields robust object detection across a range of environments.
+        \item Real-time performance is maintained by resizing frames and using concurrent processing.
+    \end{itemize}
+    \item \textbf{FAQ Chatbot Accuracy:}
+    \begin{itemize}
+        \item The SentenceTransformer and FAISS integration delivers quick and accurate FAQ responses.
+        \item The threshold mechanism helps in reducing false positives in FAQ retrieval.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Next Steps \& Future Improvements}
+
+\begin{itemize}
+    \item \textbf{Model Optimization:} Further fine-tuning of the custom YOLO model with additional domain-specific data.
+    \item \textbf{Scalability:} Deploy the FAQ chatbot on a scalable cloud platform to handle higher loads and reduce latency.
+    \item \textbf{Enhanced Interaction:} Integrate voice recognition for hands-free operation and implement a more sophisticated dialog management system.
+    \item \textbf{User Feedback:} Develop a feedback loop for users to rate responses, enabling continuous improvement of both detection and response quality.
+\end{itemize}
+
+\section{Integration Potential}
+
+This project presents significant potential for integration with various systems and applications, including:
+
+\begin{itemize}
+    \item \textbf{Smart Home and IoT:} The real-time object detection system can be integrated into smart home ecosystems to monitor room environments, trigger alerts, or adjust settings based on detected objects. For example, detecting the presence of a person could automatically adjust lighting or climate control.
+    \item \textbf{Retail and Hospitality:} In environments such as hotels or rental properties, the system can be integrated into property management solutions to provide guests with immediate information about room amenities and local attractions.
+    \item \textbf{Security and Surveillance:} The dual-model approach enhances security systems by providing precise detection of both domain-specific items and general objects. Integration with surveillance systems can lead to improved anomaly detection and automated alert systems.
+    \item \textbf{Healthcare and Assisted Living:} The system’s ability to detect objects in real-time can be applied to assistive technologies in healthcare, such as monitoring patient activity or ensuring safety in assisted living facilities.
+    \item \textbf{Data Analytics and Business Intelligence:} Integration with analytics platforms can allow for the aggregation of detection data to gain insights into user interactions and object frequency, which can then inform operational decisions and targeted improvements.
+\end{itemize}
+
+\section{Conclusion}
+
+This project demonstrates a successful integration of real-time object detection with an FAQ chatbot, leveraging the complementary strengths of a custom YOLO model and a COCO-pretrained YOLO model. The dual-model approach not only enhances domain-specific accuracy but also broadens the detection capability to include a wide range of everyday objects. Combined with efficient FAQ retrieval and TTS, the system delivers a rich interactive experience. Contributions and feedback are welcome.
+
+\section*{Acknowledgments}
+
+\begin{itemize}
+    \item \textbf{YOLO Models:} Special thanks to Ultralytics for their YOLO implementations.
+    \item \textbf{FAISS:} Developed by Facebook AI Research, FAISS enables efficient similarity search.
+    \item \textbf{SentenceTransformers:} Provides state-of-the-art sentence embeddings.
+    \item \textbf{FastAPI:} For rapid development of the FAQ chatbot API.
+    \item \textbf{OpenCV:} Essential for real-time video processing.
+\end{itemize}
+
+\end{document}
