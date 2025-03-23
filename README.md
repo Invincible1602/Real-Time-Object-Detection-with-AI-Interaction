@@ -25,7 +25,7 @@ This project integrates real-time object detection using dual YOLO models with a
 
 2. **Running the Project**:
 
-1. **Start the FAQ Chatbot API**:
+ **Start the FAQ Chatbot API**:
    - If running the chatbot locally, start the FastAPI server using:
 ```bash
 cd chatbot
@@ -33,9 +33,8 @@ python main.py
 ```
 The chatbot will be accessible at: http://localhost:8000/faq/
 
-
-2. **Run the Object Detection Script**: 
-   - Open a new terminal (with the virtual environment activated) and run:
+ **Run the Object Detection Script**:
+  - Open a new terminal (with the virtual environment activated) and run:
 bash
 ```bash
 python main3.py
